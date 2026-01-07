@@ -339,24 +339,49 @@ async function fetchRoutesFromSheet() {
     }
 }
 
-// Mock Data (Fallback when Google Sheets fails
-        // Show success
-        showToast('✅ Tạo đơn hàng thành công!');
-        
-        // Reset form
-        form.reset();
-        
-        // Reload data
-        await loadOrders();
-        await loadStats();
-        
-        // Go back to orders tab
-        showTab('orders-tab');
-        
-    } catch (error) {
-        console.error('Error creating order:', error);
-        showToast('❌ Lỗi tạo đơn hàng!');
-    }
+// Mock Data (Fallback when Google Sheets fails)
+function getMockOrders() {
+    return [
+        {
+            id: '100001',
+            customerName: 'Nguyễn Văn A',
+            phone: '0909123456',
+            pickupAddress: '123 Nguyễn Huệ, Q1, HCM',
+            deliveryAddress: '456 Lê Lợi, Q3, HCM',
+            price: 500000,
+            status: 'shipping',
+            statusText: 'Đang giao'
+        },
+        {
+            id: '100002',
+            customerName: 'Trần Thị B',
+            phone: '0909234567',
+            pickupAddress: '789 Trần Hưng Đạo, Q5, HCM',
+            deliveryAddress: '321 Võ Văn Tần, Q3, HCM',
+            price: 350000,
+            status: 'pending',
+            statusText: 'Chờ xác nhận'
+        }
+    ];
+}
+
+function getMockRoutes() {
+    return [
+        {
+            vehicle: '29A-12345',
+            route: 'HCM - Hà Nội',
+            progress: 65,
+            status: 'shipping',
+            statusText: 'Đang chạy'
+        },
+        {
+            vehicle: '51B-67890',
+            route: 'HCM - Đà Nẵng',
+            progress: 30,
+            status: 'shipping',
+            statusText: 'Đang chạy'
+        }
+    ];
 }
 
 // Tab Navigation
