@@ -3,7 +3,7 @@ const CONFIG = {
     GOOGLE_SHEET_ID: '1dDHPULdfHhdEpawOtOtnsw7NTgYF1LVpCElrCeBFnMU',
     GOOGLE_API_KEY: 'AIzaSyBX5CSWOryaV_88JiBp1QpOca_Anb3OKV8',
     TELEGRAM_BOT_TOKEN: '8571684620:AAHcDilswwxsXZ8jawOpsXumk0gdU49CI90',
-    SHEET_RANGE: 'order!A:M' // Range for orders data
+    SHEET_RANGE: 'order!A:P' // 16 columns: id -> telegram_user_id
 };
 
 // State Management
@@ -133,6 +133,7 @@ async function fetchOrdersFromSheet() {
     try {
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.GOOGLE_SHEET_ID}/values/${CONFIG.SHEET_RANGE}?key=${CONFIG.GOOGLE_API_KEY}`;
         
+        console.log('📡 Fetching orders from Google Sheets...');
         const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -141,12 +142,17 @@ async function fetchOrdersFromSheet() {
         const data = await response.json();
         const rows = data.values || [];
         
+        console.log(`📊 Sheet data: ${rows.length} rows (including header)`);
+        
         if (rows.length < 2) {
-            console.log('No data in sheet');
-            return getMockOrders(); // Fallback to mock data
+            console.log('⚠️ No data rows in sheet');
+            return [];
         }
         
-        // Skip header row, map to order objects
+        // Skip header row, map to order objects with new structure
+        // 0:id, 1:ten_khach_hang, 2:so_dien_thoai, 3:dia_chi_lay, 4:thoi_gian_lay,
+        // 5:dia_chi_giao, 6:thoi_gian_giao, 7:cuoc_phi, 8:khoi_luong, 9:kich_thuoc,
+        // 10:hinh_anh, 11:bien_so_xe, 12:ten_tai_xe, 13:trang_thai, 14:thoi_gian_tao, 15:telegram_user_id
         const orders = rows.slice(1).map(row => ({
             id: row[0] || '',
             customerName: row[1] || '',
@@ -156,21 +162,27 @@ async function fetchOrdersFromSheet() {
             deliveryAddress: row[5] || '',
             deliveryTime: row[6] || '',
             price: parseInt(row[7]) || 0,
-            vehicle: row[8] || '',
-            driver: row[9] || '',
-            statusText: row[10] || 'Chờ xác nhận',
-            status: mapStatus(row[10] || 'Chờ xác nhận'),
-            createdAt: row[11] || '',
-            userId: row[12] || ''
+            weight: row[8] || '',
+            size: row[9] || '',
+            image: row[10] || '',
+            vehicle: row[11] || '',
+            driver: row[12] || '',
+            statusText: row[13] || 'Chờ xác nhận',
+            status: mapStatus(row[13] || 'Chờ xác nhận'),
+            createdAt: row[14] || '',
+            userId: row[15] || ''
         }));
         
         console.log(`✅ Loaded ${orders.length} orders from Google Sheets`);
+        if (orders.length > 0) {
+            console.log('Sample order:', orders[0]);
+        }
         return orders;
         
     } catch (error) {
-        console.error('Error fetching from Google Sheets:', error);
-        showToast('⚠️ Đang dùng dữ liệu mẫu');
-        return getMockOrders(); // Fallback to mock data
+        console.error('❌ Error fetching from Google Sheets:', error);
+        showToast('❌ Lỗi tải dữ liệu từ Google Sheets');
+        return [];
     }
 }
 
@@ -268,6 +280,11 @@ async function createOrder(form) {
         deliveryAddress: formData.get('dia_chi_giao'),
         deliveryTime: formData.get('thoi_gian_giao'),
         price: formData.get('cuoc_phi'),
+        weight: formData.get('khoi_luong') || '',
+        size: formData.get('kich_thuoc') || '',
+        image: formData.get('hinh_anh') || '',
+        vehicle: '', // Chưa gán
+        driver: '', // Chưa gán
         status: 'pending',
         statusText: 'Chờ xác nhận',
         userId: state.user?.id || 'test',
@@ -275,7 +292,8 @@ async function createOrder(form) {
     };
     
     try {
-        // TODO: Save to Google Sheets via API
+        // TODO: Save to Google Sheets via Sheets API (requires OAuth)
+        // For now, add to local state only
         console.log('Creating order:', orderData);
         
         // Add to local state
@@ -305,6 +323,7 @@ async function fetchRoutesFromSheet() {
     try {
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.GOOGLE_SHEET_ID}/values/route!A:I?key=${CONFIG.GOOGLE_API_KEY}`;
         
+        console.log('📡 Fetching routes from Google Sheets...');
         const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -313,8 +332,11 @@ async function fetchRoutesFromSheet() {
         const data = await response.json();
         const rows = data.values || [];
         
+        console.log(`📊 Routes data: ${rows.length} rows`);
+        
         if (rows.length < 2) {
-            return getMockRoutes();
+            console.log('⚠️ No routes in sheet');
+            return [];
         }
         
         const routes = rows.slice(1).map(row => ({
@@ -331,11 +353,14 @@ async function fetchRoutesFromSheet() {
         }));
         
         console.log(`✅ Loaded ${routes.length} routes from Google Sheets`);
-        return routes.filter(r => r.statusText === 'Sẵn sàng' || r.statusText === 'Đang chạy');
+        const availableRoutes = routes.filter(r => r.statusText === 'Sẵn sàng' || r.statusText === 'Đang chạy');
+        console.log(`✅ Available routes: ${availableRoutes.length}`);
+        return availableRoutes;
         
     } catch (error) {
-        console.error('Error fetching routes:', error);
-        return getMockRoutes();
+        console.error('❌ Error fetching routes:', error);
+        showToast('❌ Lỗi tải tuyến xe');
+        return [];
     }
 }
 
