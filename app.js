@@ -128,8 +128,7 @@ async function loadOrders() {
     }
 }
 
-// Load Routes
-asyFetch Orders from Google Sheets
+// Fetch Orders from Google Sheets
 async function fetchOrdersFromSheet() {
     try {
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.GOOGLE_SHEET_ID}/values/${CONFIG.SHEET_RANGE}?key=${CONFIG.GOOGLE_API_KEY}`;
@@ -194,7 +193,8 @@ async function loadRoutes() {
     
     try {
         // Load routes from sheet or use mock
-        const routes = await fetchRoutesFromSheet
+        const routes = await fetchRoutesFromSheet();
+        state.routes = routes;
         
         if (routes.length === 0) {
             container.innerHTML = `
