@@ -3,7 +3,9 @@ const CONFIG = {
     GOOGLE_SHEET_ID: '1dDHPULdfHhdEpawOtOtnsw7NTgYF1LVpCElrCeBFnMU',
     GOOGLE_API_KEY: 'AIzaSyBX5CSWOryaV_88JiBp1QpOca_Anb3OKV8',
     TELEGRAM_BOT_TOKEN: '8571684620:AAHcDilswwxsXZ8jawOpsXumk0gdU49CI90',
-    SHEET_RANGE: 'order!A:P' // 16 columns: id -> telegram_user_id
+    SHEET_RANGE: 'order!A:P', // 16 columns: id -> telegram_user_id
+    // Apps Script Web App URL (update after deploying AppScript.js)
+    APPS_SCRIPT_URL: 'YOUR_APPS_SCRIPT_WEB_APP_URL' // Will be updated
 };
 
 // State Management
@@ -285,35 +287,64 @@ async function createOrder(form) {
         image: formData.get('hinh_anh') || '',
         vehicle: '', // Chưa gán
         driver: '', // Chưa gán
-        status: 'pending',
         statusText: 'Chờ xác nhận',
         userId: state.user?.id || 'test',
         createdAt: new Date().toISOString()
     };
     
     try {
-        // TODO: Save to Google Sheets via Sheets API (requires OAuth)
-        // For now, add to local state only
-        console.log('Creating order:', orderData);
+        console.log('📝 Creating order:', orderData);
         
-        // Add to local state
+        // Add to local state immediately for instant UI update
         state.orders.unshift(orderData);
         
-        // Show success
-        showToast('✅ Tạo đơn hàng thành công!');
+        // Try to save to Google Sheets via Apps Script
+        if (CONFIG.APPS_SCRIPT_URL && CONFIG.APPS_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_WEB_APP_URL') {
+            try {
+                const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'createOrder',
+                        order: orderData
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('✅ Order saved to Google Sheets');
+                    showToast('✅ Tạo đơn hàng thành công!');
+                } else {
+                    console.warn('⚠️ Failed to save to Sheets:', result.error);
+                    showToast('⚠️ Đơn hàng đã tạo nhưng chưa lưu vào hệ thống');
+                }
+            } catch (saveError) {
+                console.error('❌ Error saving to Sheets:', saveError);
+                showToast('⚠️ Đơn hàng đã tạo nhưng chưa lưu vào hệ thống');
+            }
+        } else {
+            console.log('📝 Local only - Apps Script URL not configured');
+            showToast('✅ Đơn hàng đã tạo (chỉ lưu local)');
+        }
         
         // Reset form
         form.reset();
         
-        // Reload data
-        await loadOrders();
-        await loadStats();
+        // Reload data from server to sync
+        setTimeout(async () => {
+            await loadOrders();
+            await loadRoutes();
+            await loadStats();
+        }, 1000);
         
         // Go back to orders tab
         showTab('orders-tab');
         
     } catch (error) {
-        console.error('Error creating order:', error);
+        console.error('❌ Error creating order:', error);
         showToast('❌ Lỗi tạo đơn hàng!');
     }
 }
