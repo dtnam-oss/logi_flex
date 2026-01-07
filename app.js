@@ -280,7 +280,27 @@ async function createOrder(form) {
         
         // Add to local state
         state.orders.unshift(orderData);
-   Fetch Routes from Google Sheets
+        
+        // Show success
+        showToast('✅ Tạo đơn hàng thành công!');
+        
+        // Reset form
+        form.reset();
+        
+        // Reload data
+        await loadOrders();
+        await loadStats();
+        
+        // Go back to orders tab
+        showTab('orders-tab');
+        
+    } catch (error) {
+        console.error('Error creating order:', error);
+        showToast('❌ Lỗi tạo đơn hàng!');
+    }
+}
+
+// Fetch Routes from Google Sheets
 async function fetchRoutesFromSheet() {
     try {
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.GOOGLE_SHEET_ID}/values/route!A:I?key=${CONFIG.GOOGLE_API_KEY}`;
