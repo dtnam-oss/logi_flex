@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LogiFlex - Quản Lý Vận Chuyển</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading" class="loading-screen">
+        <div class="loader"></div>
+        <p>Đang tải...</p>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="app-container hidden">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1>🚛 LogiFlex</h1>
+                <div class="user-info">
+                    <span id="userName">Người dùng</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Tab Content -->
+        <main class="main-content">
+            <!-- Tab 1: Đơn Hàng -->
+            <section id="orders-tab" class="tab-content active">
+                <div class="section-header">
+                    <h2>📦 Đơn Hàng</h2>
+                    <button class="btn-primary btn-sm" onclick="showTab('create-tab')">
+                        ➕ Tạo Đơn
+                    </button>
+                </div>
+                <div id="orders-list" class="orders-list">
+                    <!-- Orders will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Tab 2: Tạo Đơn -->
+            <section id="create-tab" class="tab-content">
+                <div class="section-header">
+                    <button class="btn-back" onclick="showTab('orders-tab')">← Quay lại</button>
+                    <h2>➕ Tạo Đơn Mới</h2>
+                </div>
+                <form id="create-order-form" class="order-form">
+                    <div class="form-group">
+                        <label>👤 Tên Khách Hàng</label>
+                        <input type="text" name="ten_khach_hang" required placeholder="Nguyễn Văn A">
+                    </div>
+                    <div class="form-group">
+                        <label>📱 Số Điện Thoại</label>
+                        <input type="tel" name="so_dien_thoai" required placeholder="0909123456">
+                    </div>
+                    <div class="form-group">
+                        <label>📍 Địa Chỉ Lấy Hàng</label>
+                        <input type="text" name="dia_chi_lay" required placeholder="123 Nguyễn Huệ, Q1">
+                    </div>
+                    <div class="form-group">
+                        <label>⏰ Thời Gian Lấy</label>
+                        <input type="datetime-local" name="thoi_gian_lay" required>
+                    </div>
+                    <div class="form-group">
+                        <label>📍 Địa Chỉ Giao Hàng</label>
+                        <input type="text" name="dia_chi_giao" required placeholder="456 Lê Lợi, Q3">
+                    </div>
+                    <div class="form-group">
+                        <label>⏰ Thời Gian Giao</label>
+                        <input type="datetime-local" name="thoi_gian_giao" required>
+                    </div>
+                    <div class="form-group">
+                        <label>💰 Cước Phí (VNĐ)</label>
+                        <input type="number" name="cuoc_phi" required placeholder="500000">
+                    </div>
+                    <button type="submit" class="btn-primary btn-lg">Tạo Đơn Hàng</button>
+                </form>
+            </section>
+
+            <!-- Tab 3: Tuyến Xe -->
+            <section id="routes-tab" class="tab-content">
+                <div class="section-header">
+                    <h2>🚚 Tuyến Xe</h2>
+                </div>
+                <div id="routes-list" class="routes-list">
+                    <!-- Routes will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Tab 4: Thống Kê -->
+            <section id="stats-tab" class="tab-content">
+                <div class="section-header">
+                    <h2>📊 Thống Kê</h2>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📦</div>
+                        <div class="stat-number" id="stat-total">0</div>
+                        <div class="stat-label">Tổng đơn</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🕒</div>
+                        <div class="stat-number" id="stat-pending">0</div>
+                        <div class="stat-label">Chờ xử lý</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🚚</div>
+                        <div class="stat-number" id="stat-shipping">0</div>
+                        <div class="stat-label">Đang giao</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-number" id="stat-completed">0</div>
+                        <div class="stat-label">Hoàn thành</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" onclick="showTab('orders-tab')" data-tab="orders-tab">
+                <span class="nav-icon">📦</span>
+                <span class="nav-label">Đơn hàng</span>
+            </button>
+            <button class="nav-item" onclick="showTab('routes-tab')" data-tab="routes-tab">
+                <span class="nav-icon">🚚</span>
+                <span class="nav-label">Tuyến xe</span>
+            </button>
+            <button class="nav-item" onclick="showTab('create-tab')" data-tab="create-tab">
+                <span class="nav-icon">➕</span>
+                <span class="nav-label">Tạo đơn</span>
+            </button>
+            <button class="nav-item" onclick="showTab('stats-tab')" data-tab="stats-tab">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Thống kê</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
