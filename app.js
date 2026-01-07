@@ -5,7 +5,7 @@ const CONFIG = {
     TELEGRAM_BOT_TOKEN: '8571684620:AAHcDilswwxsXZ8jawOpsXumk0gdU49CI90',
     SHEET_RANGE: 'order!A:P', // 16 columns: id -> telegram_user_id
     // Apps Script Web App URL (update after deploying AppScript.js)
-    APPS_SCRIPT_URL: 'YOUR_APPS_SCRIPT_WEB_APP_URL' // Will be updated
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwMgyfzcUE96lZ00zpJ5GiND_hY8CVcFeX1uJz2LVgeY2RlvxwUHMxyKMR65aaTT8BJZQ/exec' // Will be updated
 };
 
 // State Management
