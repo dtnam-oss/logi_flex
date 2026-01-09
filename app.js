@@ -6,7 +6,7 @@ const CONFIG = {
     SHEET_RANGE: 'order!A:P', // 16 columns: id -> telegram_user_id
     // Apps Script Web App URL (update after deploying AppScript.js)
     // Note: Set to empty string ('') to disable backend sync and work locally only
-    APPS_SCRIPT_URL: '' // Deploy AppScript.js and paste URL here
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwMgyfzcUE96lZ00zpJ5GiND_hY8CVcFeX1uJz2LVgeY2RlvxwUHMxyKMR65aaTT8BJZQ/exec' // Deploy AppScript.js and paste URL here
 };
 
 // State Management
