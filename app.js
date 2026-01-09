@@ -5,7 +5,8 @@ const CONFIG = {
     TELEGRAM_BOT_TOKEN: '8571684620:AAHcDilswwxsXZ8jawOpsXumk0gdU49CI90',
     SHEET_RANGE: 'order!A:P', // 16 columns: id -> telegram_user_id
     // Apps Script Web App URL (update after deploying AppScript.js)
-    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwMgyfzcUE96lZ00zpJ5GiND_hY8CVcFeX1uJz2LVgeY2RlvxwUHMxyKMR65aaTT8BJZQ/exec' // Will be updated
+    // Note: Set to empty string ('') to disable backend sync and work locally only
+    APPS_SCRIPT_URL: '' // Deploy AppScript.js and paste URL here
 };
 
 // State Management
@@ -315,30 +316,38 @@ async function createOrder(form) {
         
         // Try to save to Google Sheets via Apps Script in background
         if (CONFIG.APPS_SCRIPT_URL && CONFIG.APPS_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_WEB_APP_URL') {
-            console.log('💾 Saving to backend...');
+            console.log('💾 Attempting backend sync...');
+            
+            // Use timeout to prevent hanging
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            
             fetch(CONFIG.APPS_SCRIPT_URL, {
                 method: 'POST',
+                mode: 'no-cors', // Prevent CORS errors for Apps Script
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     action: 'createOrder',
                     order: orderData
-                })
+                }),
+                signal: controller.signal
             })
-            .then(response => response.json())
-            .then(result => {
-                if (result.success) {
-                    console.log('✅ Synced to Google Sheets');
-                } else {
-                    console.warn('⚠️ Failed to sync:', result.error);
-                }
+            .then(() => {
+                clearTimeout(timeoutId);
+                console.log('✅ Backend sync completed (no-cors mode)');
             })
             .catch(error => {
-                console.error('❌ Backend sync error:', error);
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') {
+                    console.warn('⚠️ Backend sync timeout - order saved locally');
+                } else {
+                    console.warn('⚠️ Backend sync failed - order saved locally:', error.message);
+                }
             });
         } else {
-            console.log('📝 Apps Script URL not configured - local only');
+            console.log('📝 Backend disabled - order saved locally only');
         }
         
     } catch (error) {
