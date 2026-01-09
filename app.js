@@ -281,12 +281,13 @@ async function createOrder(form) {
         pickupTime: formData.get('thoi_gian_lay'),
         deliveryAddress: formData.get('dia_chi_giao'),
         deliveryTime: formData.get('thoi_gian_giao'),
-        price: formData.get('cuoc_phi'),
+        price: parseInt(formData.get('cuoc_phi')) || 0,
         weight: formData.get('khoi_luong') || '',
         size: formData.get('kich_thuoc') || '',
         image: formData.get('hinh_anh') || '',
         vehicle: '', // Chưa gán
         driver: '', // Chưa gán
+        status: 'pending',
         statusText: 'Chờ xác nhận',
         userId: state.user?.id || 'test',
         createdAt: new Date().toISOString()
@@ -297,51 +298,48 @@ async function createOrder(form) {
         
         // Add to local state immediately for instant UI update
         state.orders.unshift(orderData);
+        console.log('✅ Added to local state. Total orders:', state.orders.length);
         
-        // Try to save to Google Sheets via Apps Script
-        if (CONFIG.APPS_SCRIPT_URL && CONFIG.APPS_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_WEB_APP_URL') {
-            try {
-                const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        action: 'createOrder',
-                        order: orderData
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    console.log('✅ Order saved to Google Sheets');
-                    showToast('✅ Tạo đơn hàng thành công!');
-                } else {
-                    console.warn('⚠️ Failed to save to Sheets:', result.error);
-                    showToast('⚠️ Đơn hàng đã tạo nhưng chưa lưu vào hệ thống');
-                }
-            } catch (saveError) {
-                console.error('❌ Error saving to Sheets:', saveError);
-                showToast('⚠️ Đơn hàng đã tạo nhưng chưa lưu vào hệ thống');
-            }
-        } else {
-            console.log('📝 Local only - Apps Script URL not configured');
-            showToast('✅ Đơn hàng đã tạo (chỉ lưu local)');
-        }
+        // Render immediately
+        await loadOrders();
+        await loadStats();
         
         // Reset form
         form.reset();
         
-        // Reload data from server to sync
-        setTimeout(async () => {
-            await loadOrders();
-            await loadRoutes();
-            await loadStats();
-        }, 1000);
-        
         // Go back to orders tab
         showTab('orders-tab');
+        
+        // Show success toast
+        showToast('✅ Đơn hàng đã tạo thành công!');
+        
+        // Try to save to Google Sheets via Apps Script in background
+        if (CONFIG.APPS_SCRIPT_URL && CONFIG.APPS_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_WEB_APP_URL') {
+            console.log('💾 Saving to backend...');
+            fetch(CONFIG.APPS_SCRIPT_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'createOrder',
+                    order: orderData
+                })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    console.log('✅ Synced to Google Sheets');
+                } else {
+                    console.warn('⚠️ Failed to sync:', result.error);
+                }
+            })
+            .catch(error => {
+                console.error('❌ Backend sync error:', error);
+            });
+        } else {
+            console.log('📝 Apps Script URL not configured - local only');
+        }
         
     } catch (error) {
         console.error('❌ Error creating order:', error);
