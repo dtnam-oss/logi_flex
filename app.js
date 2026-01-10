@@ -98,9 +98,9 @@ async function loadOrders() {
                 <div class="order-header">
                     <span class="order-id">#${order.id}</span>
                     <div class="card-actions">
-                        <button class="icon-btn" onclick="viewOrder('${order.id}')" title="Xem chi tiết">👁️</button>
-                        <button class="icon-btn" onclick="editOrder('${order.id}')" title="Sửa">✏️</button>
-                        <button class="icon-btn icon-btn-delete" onclick="deleteOrder('${order.id}')" title="Xóa">🗑️</button>
+                        <button class="icon-btn" onclick="viewOrder('${String(order.id)}')" title="Xem chi tiết">👁️</button>
+                        <button class="icon-btn" onclick="editOrder('${String(order.id)}')" title="Sửa">✏️</button>
+                        <button class="icon-btn icon-btn-delete" onclick="deleteOrder('${String(order.id)}')" title="Xóa">🗑️</button>
                     </div>
                 </div>
                 <div class="order-info">
@@ -209,7 +209,7 @@ function mapStatus(statusText) {
 }
 
 // Load Routes
-async function loadRoutes() {
+async function loadRoutes(selectedDate = null) {
     const container = document.getElementById('routes-list');
     container.innerHTML = '<div style="text-align:center;padding:20px">Đang tải...</div>';
     
@@ -228,17 +228,51 @@ async function loadRoutes() {
             return;
         }
         
-        container.innerHTML = routes.map(route => `
+        // Group routes by date
+        const routesByDate = {};
+        routes.forEach(route => {
+            const dateKey = route.date ? formatDateKey(route.date) : 'Chưa xác định';
+            if (!routesByDate[dateKey]) {
+                routesByDate[dateKey] = [];
+            }
+            routesByDate[dateKey].push(route);
+        });
+        
+        // Get sorted dates
+        const dates = Object.keys(routesByDate).sort((a, b) => {
+            if (a === 'Chưa xác định') return 1;
+            if (b === 'Chưa xác định') return -1;
+            return new Date(a) - new Date(b);
+        });
+        
+        // Create date tabs
+        const dateTabs = dates.map(date => {
+            const count = routesByDate[date].length;
+            const isActive = selectedDate ? selectedDate === date : date === dates[0];
+            return `
+                <button class="date-tab ${isActive ? 'active' : ''}" onclick="filterRoutesByDate('${date}')">
+                    <div class="date-tab-date">${formatDateDisplay(date)}</div>
+                    <div class="date-tab-count">${count} tuyến</div>
+                </button>
+            `;
+        }).join('');
+        
+        // Display selected date or first date
+        const activeDate = selectedDate || dates[0];
+        const activeRoutes = routesByDate[activeDate] || [];
+        
+        const routesHTML = activeRoutes.map(route => `
             <div class="route-card">
                 <div class="route-header">
                     <span class="route-vehicle">🚛 ${route.vehicle}</span>
                     <div class="card-actions">
-                        <button class="icon-btn" onclick="viewRoute('${route.id}')" title="Xem chi tiết">👁️</button>
-                        <button class="icon-btn" onclick="editRoute('${route.id}')" title="Sửa">✏️</button>
-                        <button class="icon-btn icon-btn-delete" onclick="deleteRoute('${route.id}')" title="Xóa">🗑️</button>
+                        <button class="icon-btn" onclick="viewRoute('${String(route.id)}')" title="Xem chi tiết">👁️</button>
+                        <button class="icon-btn" onclick="editRoute('${String(route.id)}')" title="Sửa">✏️</button>
+                        <button class="icon-btn icon-btn-delete" onclick="deleteRoute('${String(route.id)}')" title="Xóa">🗑️</button>
                     </div>
                 </div>
                 <div class="route-info">📍 ${route.route}</div>
+                <div class="route-detail">📅 ${route.date || 'Chưa xác định'}</div>
                 <div class="progress-bar">
                     <div class="progress-fill" style="width: ${route.progress}%"></div>
                 </div>
@@ -248,6 +282,15 @@ async function loadRoutes() {
                 </div>
             </div>
         `).join('');
+        
+        container.innerHTML = `
+            <div class="date-tabs-container">
+                <div class="date-tabs">${dateTabs}</div>
+            </div>
+            <div class="routes-content">
+                ${activeRoutes.length > 0 ? routesHTML : '<div class="empty-state"><div class="empty-state-text">Không có tuyến xe nào trong ngày này</div></div>'}
+            </div>
+        `;
         
     } catch (error) {
         console.error('Error loading routes:', error);
@@ -920,7 +963,7 @@ window.closeDetailModal = closeDetailModal;
  * Edit Order - Populate form and switch to edit mode
  */
 function editOrder(orderId) {
-    const order = state.orders.find(o => o.id === orderId);
+    const order = state.orders.find(o => String(o.id) === String(orderId));
     if (!order) {
         showToast('❌ Không tìm thấy đơn hàng!');
         return;
@@ -958,7 +1001,7 @@ function editOrder(orderId) {
  * Edit Route - Show prompt for simple edit
  */
 function editRoute(routeId) {
-    const route = state.routes.find(r => r.id === routeId);
+    const route = state.routes.find(r => String(r.id) === String(routeId));
     if (!route) {
         showToast('❌ Không tìm thấy tuyến xe!');
         return;
@@ -1113,7 +1156,7 @@ function viewOrder(orderId) {
  * View Route Details - Show in modal
  */
 function viewRoute(routeId) {
-    const route = state.routes.find(r => r.id === routeId);
+    const route = state.routes.find(r => String(r.id) === String(routeId));
     if (!route) {
         showToast('❌ Không tìm thấy tuyến xe!');
         return;
@@ -1187,3 +1230,58 @@ function closeDetailModal() {
     }
 }
 
+/**
+ * Filter routes by date
+ */
+function filterRoutesByDate(date) {
+    loadRoutes(date);
+    
+    // Haptic feedback
+    if (tg?.HapticFeedback) {
+        tg.HapticFeedback.impactOccurred('light');
+    }
+}
+
+/**
+ * Format date key for grouping (YYYY-MM-DD)
+ */
+function formatDateKey(dateString) {
+    if (!dateString) return 'Chưa xác định';
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return 'Chưa xác định';
+        return date.toISOString().split('T')[0];
+    } catch (e) {
+        return 'Chưa xác định';
+    }
+}
+
+/**
+ * Format date for display
+ */
+function formatDateDisplay(dateString) {
+    if (dateString === 'Chưa xác định') return dateString;
+    try {
+        const date = new Date(dateString);
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        // Check if today
+        if (date.toDateString() === today.toDateString()) {
+            return 'Hôm nay';
+        }
+        
+        // Check if tomorrow
+        if (date.toDateString() === tomorrow.toDateString()) {
+            return 'Ngày mai';
+        }
+        
+        // Format as dd/mm
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        return `${day}/${month}`;
+    } catch (e) {
+        return dateString;
+    }
+}
