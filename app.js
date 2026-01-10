@@ -118,6 +118,10 @@ async function loadOrders() {
                     </div>
                 </div>
                 <div class="order-price">💰 ${formatMoney(order.price)} VNĐ</div>
+                <div class="order-actions">
+                    <button class="btn-action btn-edit" onclick="editOrder('${order.id}')">✏️ Sửa</button>
+                    <button class="btn-action btn-delete" onclick="deleteOrder('${order.id}')">🗑️ Xóa</button>
+                </div>
             </div>
         `).join('');
         
@@ -232,6 +236,10 @@ async function loadRoutes() {
                     <div class="progress-fill" style="width: ${route.progress}%"></div>
                 </div>
                 <div class="progress-label">Tải trọng: ${route.progress}%</div>
+                <div class="order-actions">
+                    <button class="btn-action btn-edit" onclick="editRoute('${route.id}')">✏️ Sửa</button>
+                    <button class="btn-action btn-delete" onclick="deleteRoute('${route.id}')">🗑️ Xóa</button>
+                </div>
             </div>
         `).join('');
         
@@ -264,18 +272,26 @@ async function loadStats() {
 
 // Setup Form Handlers
 function setupFormHandlers() {
-    const form = document.getElementById('create-order-form');
-    form.addEventListener('submit', async (e) => {
+    const orderForm = document.getElementById('create-order-form');
+    orderForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         await createOrder(e.target);
+    });
+    
+    const routeForm = document.getElementById('create-route-form');
+    routeForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await handleRouteFormSubmit(e.target);
     });
 }
 
 // Create Order
 async function createOrder(form) {
     const formData = new FormData(form);
+    const editingId = form.dataset.editingId;
+    
     const orderData = {
-        id: Date.now().toString().slice(-6),
+        id: editingId || Date.now().toString().slice(-6),
         customerName: formData.get('ten_khach_hang'),
         phone: formData.get('so_dien_thoai'),
         pickupAddress: formData.get('dia_chi_lay'),
@@ -295,93 +311,97 @@ async function createOrder(form) {
     };
     
     try {
-        console.log('📝 Creating order:', orderData);
-        
-        // Try to save to Google Sheets via Apps Script first
-        if (CONFIG.APPS_SCRIPT_URL && CONFIG.APPS_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_WEB_APP_URL') {
-            console.log('💾 Saving to backend...');
-            
-            // Use timeout to prevent hanging
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
-            
-            try {
-                const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        action: 'createOrder',
-                        order: orderData
-                    }),
-                    signal: controller.signal
-                });
-                
-                clearTimeout(timeoutId);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const result = await response.json();
-                console.log('📡 Backend response:', result);
-                
-                if (result.success) {
-                    console.log('✅ Backend save successful!');
-                    
-                    // Add to local state after successful backend save
-                    state.orders.unshift(orderData);
-                    
-                    // Render
-                    await loadOrders();
-                    await loadStats();
-                    
-                    // Reset form
-                    form.reset();
-                    
-                    // Go back to orders tab
-                    showTab('orders-tab');
-                    
-                    // Show success toast
-                    showToast('✅ Đơn hàng đã tạo thành công!');
-                } else {
-                    throw new Error(result.error || 'Backend save failed');
-                }
-                
-            } catch (fetchError) {
-                clearTimeout(timeoutId);
-                
-                if (fetchError.name === 'AbortError') {
-                    console.error('❌ Backend timeout');
-                    throw new Error('Hết thời gian kết nối đến backend');
-                } else {
-                    console.error('❌ Backend error:', fetchError);
-                    throw new Error('Lỗi kết nối backend: ' + fetchError.message);
-                }
-            }
+        if (editingId) {
+            // Update existing order
+            console.log('📝 Updating order:', orderData);
+            await updateOrder(orderData);
         } else {
-            console.log('📝 Backend disabled - saving locally only');
+            // Create new order
+            console.log('📝 Creating order:', orderData);
             
-            // Add to local state
-            state.orders.unshift(orderData);
-            
-            // Render
-            await loadOrders();
-            await loadStats();
-            
-            // Reset form
-            form.reset();
-            
-            // Go back to orders tab
-            showTab('orders-tab');
-            
-            // Show success toast
-            showToast('✅ Đơn hàng đã tạo thành công (local)!');
+            // Try to save to Google Sheets via Apps Script first
+            if (CONFIG.APPS_SCRIPT_URL && CONFIG.APPS_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_WEB_APP_URL') {
+                console.log('💾 Saving to backend...');
+                
+                // Use timeout to prevent hanging
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                
+                try {
+                    const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            action: 'createOrder',
+                            order: orderData
+                        }),
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const result = await response.json();
+                    console.log('📡 Backend response:', result);
+                    
+                    if (result.success) {
+                        console.log('✅ Backend save successful!');
+                        
+                        // Add to local state after successful backend save
+                        state.orders.unshift(orderData);
+                        
+                        // Render
+                        await loadOrders();
+                        await loadStats();
+                        
+                        showToast('✅ Đơn hàng đã tạo thành công!');
+                    } else {
+                        throw new Error(result.error || 'Backend save failed');
+                    }
+                    
+                } catch (fetchError) {
+                    clearTimeout(timeoutId);
+                    
+                    if (fetchError.name === 'AbortError') {
+                        console.error('❌ Backend timeout');
+                        throw new Error('Hết thời gian kết nối đến backend');
+                    } else {
+                        console.error('❌ Backend error:', fetchError);
+                        throw new Error('Lỗi kết nối backend: ' + fetchError.message);
+                    }
+                }
+            } else {
+                console.log('📝 Backend disabled - saving locally only');
+                
+                // Add to local state
+                state.orders.unshift(orderData);
+                
+                // Render
+                await loadOrders();
+                await loadStats();
+                
+                showToast('✅ Đơn hàng đã tạo thành công (local)!');
+            }
         }
         
+        // Reset form
+        form.reset();
+        delete form.dataset.editingId;
+        
+        // Reset form title and button
+        document.querySelector('#create-tab .section-header h2').textContent = '➕ Tạo Đơn Mới';
+        form.querySelector('button[type="submit"]').textContent = 'Tạo Đơn Hàng';
+        
+        // Go back to orders tab
+        showTab('orders-tab');
+        
     } catch (error) {
-        console.error('❌ Error creating order:', error);
+        console.error('❌ Error creating/updating order:', error);
         showToast('❌ ' + (error.message || 'Lỗi tạo đơn hàng!'));
     }
 }
@@ -515,6 +535,326 @@ function formatMoney(amount) {
     return new Intl.NumberFormat('vi-VN').format(amount);
 }
 
+// ============= CRUD Operations =============
+
+/**
+ * Update Order
+ */
+async function updateOrder(orderData) {
+    if (!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_WEB_APP_URL') {
+        console.log('📝 Backend disabled - updating locally only');
+        
+        // Update in local state
+        const index = state.orders.findIndex(o => o.id === orderData.id);
+        if (index !== -1) {
+            state.orders[index] = { ...state.orders[index], ...orderData };
+            await loadOrders();
+            await loadStats();
+            showToast('✅ Đơn hàng đã cập nhật (local)!');
+            return { success: true };
+        }
+        throw new Error('Không tìm thấy đơn hàng');
+    }
+    
+    try {
+        console.log('💾 Updating order:', orderData);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'updateOrder',
+                order: orderData
+            }),
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('📡 Backend response:', result);
+        
+        if (result.success) {
+            console.log('✅ Backend update successful!');
+            
+            // Update local state
+            const index = state.orders.findIndex(o => o.id === orderData.id);
+            if (index !== -1) {
+                state.orders[index] = { ...state.orders[index], ...orderData };
+            }
+            
+            await loadOrders();
+            await loadStats();
+            showToast('✅ Đơn hàng đã cập nhật!');
+            return result;
+        } else {
+            throw new Error(result.error || 'Backend update failed');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error updating order:', error);
+        throw error;
+    }
+}
+
+/**
+ * Delete Order
+ */
+async function deleteOrder(orderId) {
+    if (!confirm('Bạn có chắc muốn xóa đơn hàng này?')) {
+        return;
+    }
+    
+    if (!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_WEB_APP_URL') {
+        console.log('📝 Backend disabled - deleting locally only');
+        
+        state.orders = state.orders.filter(o => o.id !== orderId);
+        await loadOrders();
+        await loadStats();
+        showToast('✅ Đơn hàng đã xóa (local)!');
+        return { success: true };
+    }
+    
+    try {
+        console.log('🗑️ Deleting order:', orderId);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'deleteOrder',
+                orderId: orderId
+            }),
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('📡 Backend response:', result);
+        
+        if (result.success) {
+            console.log('✅ Backend delete successful!');
+            
+            // Remove from local state
+            state.orders = state.orders.filter(o => o.id !== orderId);
+            
+            await loadOrders();
+            await loadStats();
+            showToast('✅ Đơn hàng đã xóa!');
+            return result;
+        } else {
+            throw new Error(result.error || 'Backend delete failed');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error deleting order:', error);
+        showToast('❌ ' + (error.message || 'Lỗi xóa đơn hàng!'));
+    }
+}
+
+/**
+ * Create Route
+ */
+async function createRoute(routeData) {
+    if (!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_WEB_APP_URL') {
+        console.log('📝 Backend disabled - creating locally only');
+        
+        state.routes.unshift(routeData);
+        await loadRoutes();
+        showToast('✅ Tuyến xe đã tạo (local)!');
+        return { success: true };
+    }
+    
+    try {
+        console.log('📝 Creating route:', routeData);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'createRoute',
+                route: routeData
+            }),
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('📡 Backend response:', result);
+        
+        if (result.success) {
+            console.log('✅ Backend create successful!');
+            
+            state.routes.unshift(routeData);
+            await loadRoutes();
+            showToast('✅ Tuyến xe đã tạo!');
+            return result;
+        } else {
+            throw new Error(result.error || 'Backend create failed');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error creating route:', error);
+        throw error;
+    }
+}
+
+/**
+ * Update Route
+ */
+async function updateRoute(routeData) {
+    if (!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_WEB_APP_URL') {
+        console.log('📝 Backend disabled - updating locally only');
+        
+        const index = state.routes.findIndex(r => r.id === routeData.id);
+        if (index !== -1) {
+            state.routes[index] = { ...state.routes[index], ...routeData };
+            await loadRoutes();
+            showToast('✅ Tuyến xe đã cập nhật (local)!');
+            return { success: true };
+        }
+        throw new Error('Không tìm thấy tuyến xe');
+    }
+    
+    try {
+        console.log('💾 Updating route:', routeData);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'updateRoute',
+                route: routeData
+            }),
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('📡 Backend response:', result);
+        
+        if (result.success) {
+            console.log('✅ Backend update successful!');
+            
+            const index = state.routes.findIndex(r => r.id === routeData.id);
+            if (index !== -1) {
+                state.routes[index] = { ...state.routes[index], ...routeData };
+            }
+            
+            await loadRoutes();
+            showToast('✅ Tuyến xe đã cập nhật!');
+            return result;
+        } else {
+            throw new Error(result.error || 'Backend update failed');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error updating route:', error);
+        throw error;
+    }
+}
+
+/**
+ * Delete Route
+ */
+async function deleteRoute(routeId) {
+    if (!confirm('Bạn có chắc muốn xóa tuyến xe này?')) {
+        return;
+    }
+    
+    if (!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_WEB_APP_URL') {
+        console.log('📝 Backend disabled - deleting locally only');
+        
+        state.routes = state.routes.filter(r => r.id !== routeId);
+        await loadRoutes();
+        showToast('✅ Tuyến xe đã xóa (local)!');
+        return { success: true };
+    }
+    
+    try {
+        console.log('🗑️ Deleting route:', routeId);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'deleteRoute',
+                routeId: routeId
+            }),
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('📡 Backend response:', result);
+        
+        if (result.success) {
+            console.log('✅ Backend delete successful!');
+            
+            state.routes = state.routes.filter(r => r.id !== routeId);
+            
+            await loadRoutes();
+            showToast('✅ Tuyến xe đã xóa!');
+            return result;
+        } else {
+            throw new Error(result.error || 'Backend delete failed');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error deleting route:', error);
+        showToast('❌ ' + (error.message || 'Lỗi xóa tuyến xe!'));
+    }
+}
+
 // Mock Data (Temporary - sẽ thay bằng Google Sheets API)
 function getMockOrders() {
     return [
@@ -562,3 +902,116 @@ function getMockRoutes() {
 
 // Export for global access
 window.showTab = showTab;
+window.editOrder = editOrder;
+window.deleteOrder = deleteOrder;
+window.editRoute = editRoute;
+window.deleteRoute = deleteRoute;
+
+/**
+ * Edit Order - Populate form and switch to edit mode
+ */
+function editOrder(orderId) {
+    const order = state.orders.find(o => o.id === orderId);
+    if (!order) {
+        showToast('❌ Không tìm thấy đơn hàng!');
+        return;
+    }
+    
+    // Populate form
+    const form = document.getElementById('create-order-form');
+    form.querySelector('[name="ten_khach_hang"]').value = order.customerName;
+    form.querySelector('[name="so_dien_thoai"]').value = order.phone;
+    form.querySelector('[name="dia_chi_lay"]').value = order.pickupAddress;
+    form.querySelector('[name="thoi_gian_lay"]').value = order.pickupTime;
+    form.querySelector('[name="dia_chi_giao"]').value = order.deliveryAddress;
+    form.querySelector('[name="thoi_gian_giao"]').value = order.deliveryTime;
+    form.querySelector('[name="cuoc_phi"]').value = order.price;
+    form.querySelector('[name="khoi_luong"]').value = order.weight;
+    form.querySelector('[name="kich_thuoc"]').value = order.size;
+    form.querySelector('[name="hinh_anh"]').value = order.image;
+    
+    // Store order ID for update
+    form.dataset.editingId = orderId;
+    
+    // Change form title
+    document.querySelector('#create-tab .section-header h2').textContent = '✏️ Sửa Đơn Hàng';
+    
+    // Change button text
+    form.querySelector('button[type="submit"]').textContent = 'Cập Nhật Đơn Hàng';
+    
+    // Switch to form tab
+    showTab('create-tab');
+    
+    showToast('📝 Đang chỉnh sửa đơn hàng #' + orderId);
+}
+
+/**
+ * Edit Route - Show prompt for simple edit
+ */
+function editRoute(routeId) {
+    const route = state.routes.find(r => r.id === routeId);
+    if (!route) {
+        showToast('❌ Không tìm thấy tuyến xe!');
+        return;
+    }
+    
+    const newStatus = prompt('Cập nhật trạng thái tuyến xe:\n1. Sẵn sàng\n2. Đang chạy\n\nNhập số (1 hoặc 2):', 
+        route.statusText === 'Đang chạy' ? '2' : '1');
+    
+    if (newStatus === null) return; // User cancelled
+    
+    const statusMap = {
+        '1': 'Sẵn sàng',
+        '2': 'Đang chạy'
+    };
+    
+    const newProgress = prompt('Cập nhật tải trọng (%):', route.progress);
+    
+    if (newProgress === null) return; // User cancelled
+    
+    const updatedRoute = {
+        ...route,
+        statusText: statusMap[newStatus] || route.statusText,
+        status: statusMap[newStatus] === 'Đang chạy' ? 'shipping' : 'pending',
+        progress: parseInt(newProgress) || route.progress
+    };
+    
+    updateRoute(updatedRoute).catch(error => {
+        showToast('❌ ' + (error.message || 'Lỗi cập nhật tuyến xe!'));
+    });
+}
+
+/**
+ * Handle Route Form Submit - Create or Update
+ */
+async function handleRouteFormSubmit(form) {
+    const formData = new FormData(form);
+    
+    const routeData = {
+        id: Date.now().toString().slice(-6),
+        vehicle: formData.get('vehicle'),
+        route: formData.get('route'),
+        capacity: formData.get('capacity'),
+        weight: formData.get('weight'),
+        date: formData.get('date'),
+        statusText: formData.get('statusText') || 'Sẵn sàng',
+        status: formData.get('statusText') === 'Đang chạy' ? 'shipping' : 'pending',
+        progress: parseInt(formData.get('progress')) || 0,
+        createdAt: new Date().toISOString()
+    };
+    
+    try {
+        await createRoute(routeData);
+        
+        // Reset form
+        form.reset();
+        
+        // Go back to routes tab
+        showTab('routes-tab');
+        
+    } catch (error) {
+        console.error('❌ Error creating route:', error);
+        showToast('❌ ' + (error.message || 'Lỗi tạo tuyến xe!'));
+    }
+}
+

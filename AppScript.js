@@ -52,6 +52,21 @@ function doPost(e) {
       case 'createOrder':
         result = createOrder(data.order);
         break;
+      case 'updateOrder':
+        result = updateOrder(data.order);
+        break;
+      case 'deleteOrder':
+        result = deleteOrder(data.orderId);
+        break;
+      case 'createRoute':
+        result = createRoute(data.route);
+        break;
+      case 'updateRoute':
+        result = updateRoute(data.route);
+        break;
+      case 'deleteRoute':
+        result = deleteRoute(data.routeId);
+        break;
       default:
         result = { success: false, error: 'Unknown action' };
     }
@@ -169,4 +184,189 @@ function createOrder(order) {
     id: order.id,
     message: 'Order created successfully'
   };
+}
+
+/**
+ * Update existing order by ID
+ */
+function updateOrder(order) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('order');
+  
+  if (!sheet) {
+    return { success: false, error: 'Sheet "order" not found' };
+  }
+  
+  const data = sheet.getDataRange().getValues();
+  
+  // Find row with matching ID (column A)
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] == order.id) {
+      // Update row data
+      const row = [
+        order.id,
+        order.customerName || '',
+        order.phone || '',
+        order.pickupAddress || '',
+        order.pickupTime || '',
+        order.deliveryAddress || '',
+        order.deliveryTime || '',
+        order.price || 0,
+        order.weight || '',
+        order.size || '',
+        order.image || '',
+        order.vehicle || '',
+        order.driver || '',
+        order.statusText || 'Chờ xác nhận',
+        order.createdAt || data[i][14], // Keep original createdAt
+        order.userId || ''
+      ];
+      
+      // Update the row (i+1 because sheet is 1-indexed)
+      sheet.getRange(i + 1, 1, 1, 16).setValues([row]);
+      
+      return { 
+        success: true, 
+        id: order.id,
+        message: 'Order updated successfully'
+      };
+    }
+  }
+  
+  return { success: false, error: 'Order not found with ID: ' + order.id };
+}
+
+/**
+ * Delete order by ID
+ */
+function deleteOrder(orderId) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('order');
+  
+  if (!sheet) {
+    return { success: false, error: 'Sheet "order" not found' };
+  }
+  
+  const data = sheet.getDataRange().getValues();
+  
+  // Find row with matching ID
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] == orderId) {
+      // Delete the row (i+1 because sheet is 1-indexed)
+      sheet.deleteRow(i + 1);
+      
+      return { 
+        success: true, 
+        id: orderId,
+        message: 'Order deleted successfully'
+      };
+    }
+  }
+  
+  return { success: false, error: 'Order not found with ID: ' + orderId };
+}
+
+/**
+ * Create new route - Append to sheet
+ */
+function createRoute(route) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('route');
+  
+  if (!sheet) {
+    return { success: false, error: 'Sheet "route" not found' };
+  }
+  
+  // Prepare row data matching route structure
+  const row = [
+    route.id || '',
+    route.vehicle || '',
+    route.route || '',
+    route.capacity || '',
+    route.weight || '',
+    route.date || '',
+    route.statusText || 'Sẵn sàng',
+    route.progress || 0,
+    route.createdAt || new Date().toISOString()
+  ];
+  
+  sheet.appendRow(row);
+  
+  return { 
+    success: true, 
+    id: route.id,
+    message: 'Route created successfully'
+  };
+}
+
+/**
+ * Update existing route by ID
+ */
+function updateRoute(route) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('route');
+  
+  if (!sheet) {
+    return { success: false, error: 'Sheet "route" not found' };
+  }
+  
+  const data = sheet.getDataRange().getValues();
+  
+  // Find row with matching ID (column A)
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] == route.id) {
+      const row = [
+        route.id,
+        route.vehicle || '',
+        route.route || '',
+        route.capacity || '',
+        route.weight || '',
+        route.date || '',
+        route.statusText || 'Sẵn sàng',
+        route.progress || 0,
+        route.createdAt || data[i][8] // Keep original createdAt
+      ];
+      
+      // Get number of columns in the row
+      const numCols = row.length;
+      sheet.getRange(i + 1, 1, 1, numCols).setValues([row]);
+      
+      return { 
+        success: true, 
+        id: route.id,
+        message: 'Route updated successfully'
+      };
+    }
+  }
+  
+  return { success: false, error: 'Route not found with ID: ' + route.id };
+}
+
+/**
+ * Delete route by ID
+ */
+function deleteRoute(routeId) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('route');
+  
+  if (!sheet) {
+    return { success: false, error: 'Sheet "route" not found' };
+  }
+  
+  const data = sheet.getDataRange().getValues();
+  
+  // Find row with matching ID
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] == routeId) {
+      sheet.deleteRow(i + 1);
+      
+      return { 
+        success: true, 
+        id: routeId,
+        message: 'Route deleted successfully'
+      };
+    }
+  }
+  
+  return { success: false, error: 'Route not found with ID: ' + routeId };
 }

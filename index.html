@@ -96,10 +96,55 @@
             <section id="routes-tab" class="tab-content">
                 <div class="section-header">
                     <h2>🚚 Tuyến Xe</h2>
+                    <button class="btn-primary btn-sm" onclick="showTab('create-route-tab')">
+                        ➕ Tạo Tuyến
+                    </button>
                 </div>
                 <div id="routes-list" class="routes-list">
                     <!-- Routes will be loaded here -->
                 </div>
+            </section>
+
+            <!-- Tab 3.5: Tạo Tuyến Xe -->
+            <section id="create-route-tab" class="tab-content">
+                <div class="section-header">
+                    <button class="btn-back" onclick="showTab('routes-tab')">← Quay lại</button>
+                    <h2>➕ Tạo Tuyến Xe Mới</h2>
+                </div>
+                <form id="create-route-form" class="order-form">
+                    <div class="form-group">
+                        <label>🚛 Biển Số Xe</label>
+                        <input type="text" name="vehicle" required placeholder="29A-12345">
+                    </div>
+                    <div class="form-group">
+                        <label>📍 Tuyến Đường</label>
+                        <input type="text" name="route" required placeholder="HCM - Hà Nội">
+                    </div>
+                    <div class="form-group">
+                        <label>📦 Sức Chứa (tấn)</label>
+                        <input type="text" name="capacity" required placeholder="5">
+                    </div>
+                    <div class="form-group">
+                        <label>⚖️ Khối Lượng (tấn)</label>
+                        <input type="text" name="weight" placeholder="3">
+                    </div>
+                    <div class="form-group">
+                        <label>📅 Ngày Xuất Phát</label>
+                        <input type="date" name="date" required>
+                    </div>
+                    <div class="form-group">
+                        <label>📊 Trạng Thái</label>
+                        <select name="statusText" required>
+                            <option value="Sẵn sàng">Sẵn sàng</option>
+                            <option value="Đang chạy">Đang chạy</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>📈 Tải Trọng (%)</label>
+                        <input type="number" name="progress" min="0" max="100" value="0" required>
+                    </div>
+                    <button type="submit" class="btn-primary btn-lg">Tạo Tuyến Xe</button>
+                </form>
             </section>
 
             <!-- Tab 4: Thống Kê -->
