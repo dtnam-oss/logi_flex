@@ -53,7 +53,7 @@ function doPost(e) {
         result = createOrder(data.order);
         break;
       default:
-        result = { error: 'Unknown action' };
+        result = { success: false, error: 'Unknown action' };
     }
     
     return ContentService
@@ -61,8 +61,9 @@ function doPost(e) {
       .setMimeType(ContentService.MimeType.JSON);
       
   } catch (error) {
+    Logger.log('Error in doPost: ' + error.toString());
     return ContentService
-      .createTextOutput(JSON.stringify({ error: error.toString() }))
+      .createTextOutput(JSON.stringify({ success: false, error: error.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }

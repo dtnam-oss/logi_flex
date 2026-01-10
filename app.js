@@ -297,62 +297,92 @@ async function createOrder(form) {
     try {
         console.log('📝 Creating order:', orderData);
         
-        // Add to local state immediately for instant UI update
-        state.orders.unshift(orderData);
-        console.log('✅ Added to local state. Total orders:', state.orders.length);
-        
-        // Render immediately
-        await loadOrders();
-        await loadStats();
-        
-        // Reset form
-        form.reset();
-        
-        // Go back to orders tab
-        showTab('orders-tab');
-        
-        // Show success toast
-        showToast('✅ Đơn hàng đã tạo thành công!');
-        
-        // Try to save to Google Sheets via Apps Script in background
+        // Try to save to Google Sheets via Apps Script first
         if (CONFIG.APPS_SCRIPT_URL && CONFIG.APPS_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_WEB_APP_URL') {
-            console.log('💾 Attempting backend sync...');
+            console.log('💾 Saving to backend...');
             
             // Use timeout to prevent hanging
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
             
-            fetch(CONFIG.APPS_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors', // Prevent CORS errors for Apps Script
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'createOrder',
-                    order: orderData
-                }),
-                signal: controller.signal
-            })
-            .then(() => {
+            try {
+                const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'createOrder',
+                        order: orderData
+                    }),
+                    signal: controller.signal
+                });
+                
                 clearTimeout(timeoutId);
-                console.log('✅ Backend sync completed (no-cors mode)');
-            })
-            .catch(error => {
-                clearTimeout(timeoutId);
-                if (error.name === 'AbortError') {
-                    console.warn('⚠️ Backend sync timeout - order saved locally');
-                } else {
-                    console.warn('⚠️ Backend sync failed - order saved locally:', error.message);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
-            });
+                
+                const result = await response.json();
+                console.log('📡 Backend response:', result);
+                
+                if (result.success) {
+                    console.log('✅ Backend save successful!');
+                    
+                    // Add to local state after successful backend save
+                    state.orders.unshift(orderData);
+                    
+                    // Render
+                    await loadOrders();
+                    await loadStats();
+                    
+                    // Reset form
+                    form.reset();
+                    
+                    // Go back to orders tab
+                    showTab('orders-tab');
+                    
+                    // Show success toast
+                    showToast('✅ Đơn hàng đã tạo thành công!');
+                } else {
+                    throw new Error(result.error || 'Backend save failed');
+                }
+                
+            } catch (fetchError) {
+                clearTimeout(timeoutId);
+                
+                if (fetchError.name === 'AbortError') {
+                    console.error('❌ Backend timeout');
+                    throw new Error('Hết thời gian kết nối đến backend');
+                } else {
+                    console.error('❌ Backend error:', fetchError);
+                    throw new Error('Lỗi kết nối backend: ' + fetchError.message);
+                }
+            }
         } else {
-            console.log('📝 Backend disabled - order saved locally only');
+            console.log('📝 Backend disabled - saving locally only');
+            
+            // Add to local state
+            state.orders.unshift(orderData);
+            
+            // Render
+            await loadOrders();
+            await loadStats();
+            
+            // Reset form
+            form.reset();
+            
+            // Go back to orders tab
+            showTab('orders-tab');
+            
+            // Show success toast
+            showToast('✅ Đơn hàng đã tạo thành công (local)!');
         }
         
     } catch (error) {
         console.error('❌ Error creating order:', error);
-        showToast('❌ Lỗi tạo đơn hàng!');
+        showToast('❌ ' + (error.message || 'Lỗi tạo đơn hàng!'));
     }
 }
 
