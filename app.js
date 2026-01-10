@@ -97,7 +97,11 @@ async function loadOrders() {
             <div class="order-card">
                 <div class="order-header">
                     <span class="order-id">#${order.id}</span>
-                    <span class="status-badge status-${order.status}">${order.statusText}</span>
+                    <div class="card-actions">
+                        <button class="icon-btn" onclick="viewOrder('${order.id}')" title="Xem chi tiết">👁️</button>
+                        <button class="icon-btn" onclick="editOrder('${order.id}')" title="Sửa">✏️</button>
+                        <button class="icon-btn icon-btn-delete" onclick="deleteOrder('${order.id}')" title="Xóa">🗑️</button>
+                    </div>
                 </div>
                 <div class="order-info">
                     <div class="order-info-row">
@@ -117,10 +121,9 @@ async function loadOrders() {
                         <span>${order.deliveryAddress}</span>
                     </div>
                 </div>
-                <div class="order-price">💰 ${formatMoney(order.price)} VNĐ</div>
-                <div class="order-actions">
-                    <button class="btn-action btn-edit" onclick="editOrder('${order.id}')">✏️ Sửa</button>
-                    <button class="btn-action btn-delete" onclick="deleteOrder('${order.id}')">🗑️ Xóa</button>
+                <div class="order-footer">
+                    <span class="status-badge status-${order.status}">${order.statusText}</span>
+                    <span class="order-price">💰 ${formatMoney(order.price)} VNĐ</span>
                 </div>
             </div>
         `).join('');
@@ -229,16 +232,19 @@ async function loadRoutes() {
             <div class="route-card">
                 <div class="route-header">
                     <span class="route-vehicle">🚛 ${route.vehicle}</span>
-                    <span class="status-badge status-${route.status}">${route.statusText}</span>
+                    <div class="card-actions">
+                        <button class="icon-btn" onclick="viewRoute('${route.id}')" title="Xem chi tiết">👁️</button>
+                        <button class="icon-btn" onclick="editRoute('${route.id}')" title="Sửa">✏️</button>
+                        <button class="icon-btn icon-btn-delete" onclick="deleteRoute('${route.id}')" title="Xóa">🗑️</button>
+                    </div>
                 </div>
                 <div class="route-info">📍 ${route.route}</div>
                 <div class="progress-bar">
                     <div class="progress-fill" style="width: ${route.progress}%"></div>
                 </div>
-                <div class="progress-label">Tải trọng: ${route.progress}%</div>
-                <div class="order-actions">
-                    <button class="btn-action btn-edit" onclick="editRoute('${route.id}')">✏️ Sửa</button>
-                    <button class="btn-action btn-delete" onclick="deleteRoute('${route.id}')">🗑️ Xóa</button>
+                <div class="route-footer">
+                    <span class="status-badge status-${route.status}">${route.statusText}</span>
+                    <span class="progress-label">Tải trọng: ${route.progress}%</span>
                 </div>
             </div>
         `).join('');
@@ -906,6 +912,9 @@ window.editOrder = editOrder;
 window.deleteOrder = deleteOrder;
 window.editRoute = editRoute;
 window.deleteRoute = deleteRoute;
+window.viewOrder = viewOrder;
+window.viewRoute = viewRoute;
+window.closeDetailModal = closeDetailModal;
 
 /**
  * Edit Order - Populate form and switch to edit mode
@@ -1012,6 +1021,169 @@ async function handleRouteFormSubmit(form) {
     } catch (error) {
         console.error('❌ Error creating route:', error);
         showToast('❌ ' + (error.message || 'Lỗi tạo tuyến xe!'));
+    }
+}
+
+/**
+ * View Order Details - Show in modal
+ */
+function viewOrder(orderId) {
+    const order = state.orders.find(o => o.id === orderId);
+    if (!order) {
+        showToast('❌ Không tìm thấy đơn hàng!');
+        return;
+    }
+    
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+    
+    modalTitle.textContent = `Chi tiết đơn hàng #${order.id}`;
+    
+    modalBody.innerHTML = `
+        <div class="detail-section">
+            <div class="detail-row">
+                <span class="detail-label">Trạng thái:</span>
+                <span class="status-badge status-${order.status}">${order.statusText}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">👤 Tên khách hàng:</span>
+                <span class="detail-value">${order.customerName}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📞 Số điện thoại:</span>
+                <span class="detail-value">${order.phone}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📍 Địa chỉ lấy hàng:</span>
+                <span class="detail-value">${order.pickupAddress}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">⏰ Thời gian lấy:</span>
+                <span class="detail-value">${order.pickupTime || 'Chưa xác định'}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📍 Địa chỉ giao hàng:</span>
+                <span class="detail-value">${order.deliveryAddress}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">⏰ Thời gian giao:</span>
+                <span class="detail-value">${order.deliveryTime || 'Chưa xác định'}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">💰 Cước phí:</span>
+                <span class="detail-value highlight">${formatMoney(order.price)} VNĐ</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">⚖️ Khối lượng:</span>
+                <span class="detail-value">${order.weight || 'N/A'}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📏 Kích thước:</span>
+                <span class="detail-value">${order.size || 'N/A'}</span>
+            </div>
+            ${order.vehicle ? `
+                <div class="detail-row">
+                    <span class="detail-label">🚛 Biển số xe:</span>
+                    <span class="detail-value">${order.vehicle}</span>
+                </div>
+            ` : ''}
+            ${order.driver ? `
+                <div class="detail-row">
+                    <span class="detail-label">👨‍✈️ Tài xế:</span>
+                    <span class="detail-value">${order.driver}</span>
+                </div>
+            ` : ''}
+            <div class="detail-row">
+                <span class="detail-label">📅 Ngày tạo:</span>
+                <span class="detail-value">${new Date(order.createdAt).toLocaleString('vi-VN')}</span>
+            </div>
+        </div>
+    `;
+    
+    // Show modal
+    document.getElementById('detail-modal').classList.add('show');
+    
+    // Haptic feedback
+    if (tg?.HapticFeedback) {
+        tg.HapticFeedback.impactOccurred('light');
+    }
+}
+
+/**
+ * View Route Details - Show in modal
+ */
+function viewRoute(routeId) {
+    const route = state.routes.find(r => r.id === routeId);
+    if (!route) {
+        showToast('❌ Không tìm thấy tuyến xe!');
+        return;
+    }
+    
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+    
+    modalTitle.textContent = `Chi tiết tuyến xe ${route.vehicle}`;
+    
+    modalBody.innerHTML = `
+        <div class="detail-section">
+            <div class="detail-row">
+                <span class="detail-label">Trạng thái:</span>
+                <span class="status-badge status-${route.status}">${route.statusText}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">🚛 Biển số xe:</span>
+                <span class="detail-value">${route.vehicle}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📍 Tuyến đường:</span>
+                <span class="detail-value">${route.route}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📦 Sức chứa:</span>
+                <span class="detail-value">${route.capacity || 'N/A'}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">⚖️ Khối lượng:</span>
+                <span class="detail-value">${route.weight || 'N/A'}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📅 Ngày xuất phát:</span>
+                <span class="detail-value">${route.date || 'Chưa xác định'}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📈 Tải trọng:</span>
+                <span class="detail-value">
+                    <div class="progress-bar" style="display: inline-block; width: 150px; vertical-align: middle; margin-left: 10px;">
+                        <div class="progress-fill" style="width: ${route.progress}%"></div>
+                    </div>
+                    <span style="margin-left: 10px;">${route.progress}%</span>
+                </span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📅 Ngày tạo:</span>
+                <span class="detail-value">${new Date(route.createdAt).toLocaleString('vi-VN')}</span>
+            </div>
+        </div>
+    `;
+    
+    // Show modal
+    document.getElementById('detail-modal').classList.add('show');
+    
+    // Haptic feedback
+    if (tg?.HapticFeedback) {
+        tg.HapticFeedback.impactOccurred('light');
+    }
+}
+
+/**
+ * Close Detail Modal
+ */
+function closeDetailModal() {
+    document.getElementById('detail-modal').classList.remove('show');
+    
+    // Haptic feedback
+    if (tg?.HapticFeedback) {
+        tg.HapticFeedback.impactOccurred('light');
     }
 }
 
